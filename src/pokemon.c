@@ -37,6 +37,16 @@
 #include "constants/battle_move_effects.h"
 #include "constants/union_room.h"
 
+const u16 gSpeciesSingleMove[NUM_SPECIES] = {
+    [SPECIES_NONE] = MOVE_NONE,
+    [SPECIES_BULBASAUR] = MOVE_VINE_WHIP,
+    [SPECIES_IVYSAUR] = MOVE_VINE_WHIP,
+    [SPECIES_VENUSAUR] = MOVE_VINE_WHIP,
+    [SPECIES_CHARMANDER] = MOVE_EMBER,
+    [SPECIES_SQUIRTLE] = MOVE_WATER_GUN,
+    // Add the rest of your species here...
+};
+
 #define SPECIES_TO_HOENN(name)      [SPECIES_##name - 1] = HOENN_DEX_##name
 #define SPECIES_TO_NATIONAL(name)   [SPECIES_##name - 1] = NATIONAL_DEX_##name
 #define HOENN_TO_NATIONAL(name)     [HOENN_DEX_##name - 1] = NATIONAL_DEX_##name
@@ -1777,7 +1787,7 @@ void CreateBoxMon(struct BoxPokemon *boxMon, u16 species, u8 level, u8 fixedIV, 
     else
         personality = Random32();
 
-    SetBoxMonData(boxMon, MON_DATA_PERSONALITY, &personality);
+    (boxMon, MON_DATA_PERSONALITY, &personality);
 
     //Determine original trainer ID
     if (otIdType == OT_ID_RANDOM_NO_SHINY) //Pokemon cannot be shiny
@@ -1801,7 +1811,7 @@ void CreateBoxMon(struct BoxPokemon *boxMon, u16 species, u8 level, u8 fixedIV, 
               | (gSaveBlock2Ptr->playerTrainerId[3] << 24);
     }
 
-    SetBoxMonData(boxMon, MON_DATA_OT_ID, &value);
+    (boxMon, MON_DATA_OT_ID, &value);
 
     checksum = CalculateBoxMonChecksum(boxMon);
     SetBoxMonData(boxMon, MON_DATA_CHECKSUM, &checksum);
@@ -2287,6 +2297,8 @@ static void GiveBoxMonInitialMoveset(struct BoxPokemon *boxMon)
 
 u16 MonTryLearningNewMove(struct Pokemon *mon, bool8 firstMove)
 {
+    return 0;
+    
     u32 retVal = MOVE_NONE;
     u16 species = GetMonData(mon, MON_DATA_SPECIES, NULL);
     u8 level = GetMonData(mon, MON_DATA_LEVEL, NULL);
@@ -3437,7 +3449,21 @@ void SetBoxMonData(struct BoxPokemon *boxMon, s32 field, const void *dataArg)
         SET32(boxMon->personality);
         break;
     case MON_DATA_OT_ID:
-        SET32(boxMon->otId);
+        boxMon->otId = *(u32 *)data;
+        // Hook: If the Pokémon now belongs to the player, enforce the single move
+        if (boxMon->otId != 0 && boxMon->otId == gSaveBlock2Ptr->playerTrainerId)
+        {
+            u16 species = GetBoxMonData(boxMon, MON_DATA_SPECIES, NULL);
+            u16 singleMove = gSpeciesSingleMove[species];
+            
+            if (singleMove != MOVE_NONE)
+            {
+                boxMon->move1 = singleMove;
+                boxMon->move2 = MOVE_NONE;
+                boxMon->move3 = MOVE_NONE;
+                boxMon->move4 = MOVE_NONE;
+            }
+        }
         break;
     case MON_DATA_NICKNAME:
     {
